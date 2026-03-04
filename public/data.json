@@ -1,0 +1,119 @@
+{
+  "categories": [
+    "TOTAL",
+    "Absence ou insuffisance de  professionnels / services sur le territoire",
+    "Difficultés d'articulation entre les professionnels / services sur le territoire",
+    "Difficultés dans la réalisation de sa mission pour le professionnels / services",
+    "Difficultés de recours aux professionnels/services : critères et contrainte d’entrée en structure (manque de place",
+    "modalité d’accès aux structures)"
+  ],
+  "points": [
+    {
+      "cp": "83640",
+      "label": "Saint-Zacharie",
+      "lat": 43.3749,
+      "lng": 5.7164,
+      "counts": {
+        "TOTAL": 1,
+        "Absence ou insuffisance de  professionnels / services sur le territoire": 1
+      }
+    },
+    {
+      "cp": "83160",
+      "label": "La Valette-du-Var",
+      "lat": 43.1484,
+      "lng": 5.9893,
+      "counts": {
+        "TOTAL": 1,
+        "Absence ou insuffisance de  professionnels / services sur le territoire": 1
+      }
+    },
+    {
+      "cp": "83470",
+      "label": "Seillons-Source-d'Argens",
+      "lat": 43.5156,
+      "lng": 5.8775,
+      "counts": {
+        "TOTAL": 1,
+        "Absence ou insuffisance de  professionnels / services sur le territoire": 1
+      }
+    },
+    {
+      "cp": "83210",
+      "label": "Solliès-Ville",
+      "lat": 43.1804,
+      "lng": 6.0232,
+      "counts": {
+        "TOTAL": 1,
+        "Absence ou insuffisance de  professionnels / services sur le territoire": 1
+      }
+    },
+    {
+      "cp": "83170",
+      "label": "Vins-sur-Caramy",
+      "lat": 43.432,
+      "lng": 6.1495,
+      "counts": {
+        "TOTAL": 2,
+        "Absence ou insuffisance de  professionnels / services sur le territoire": 1,
+        "Difficultés dans la réalisation de sa mission pour le professionnels / services": 1
+      }
+    },
+    {
+      "cp": "83390",
+      "label": "Puget-Ville",
+      "lat": 43.2809,
+      "lng": 6.1646,
+      "counts": {
+        "TOTAL": 1,
+        "Difficultés dans la réalisation de sa mission pour le professionnels / services": 1
+      }
+    },
+    {
+      "cp": "83143",
+      "label": "Le Val",
+      "lat": 43.4468,
+      "lng": 6.0569,
+      "counts": {
+        "TOTAL": 1,
+        "Absence ou insuffisance de  professionnels / services sur le territoire": 1,
+        "Difficultés dans la réalisation de sa mission pour le professionnels / services": 1
+      }
+    },
+    {
+      "cp": "83430",
+      "label": "Saint-Mandrier-sur-Mer",
+      "lat": 43.0762,
+      "lng": 5.9272,
+      "counts": {
+        "TOTAL": 1,
+        "Absence ou insuffisance de  professionnels / services sur le territoire": 1,
+        "Difficultés dans la réalisation de sa mission pour le professionnels / services": 1
+      }
+    },
+    {
+      "cp": "83270",
+      "label": "Saint-Cyr-sur-Mer",
+      "lat": 43.17,
+      "lng": 5.7055,
+      "counts": {
+        "TOTAL": 1,
+        "Absence ou insuffisance de  professionnels / services sur le territoire": 1,
+        "Difficultés dans la réalisation de sa mission pour le professionnels / services": 1,
+        "Difficultés d'articulation entre les professionnels / services sur le territoire": 1,
+        "Difficultés de recours aux professionnels/services : critères et contrainte d’entrée en structure (manque de place": 1,
+        "modalité d’accès aux structures)": 1
+      }
+    },
+    {
+      "cp": "83136",
+      "label": "Sainte-Anastasie-sur-Issole",
+      "lat": 43.3337,
+      "lng": 6.1227,
+      "counts": {
+        "TOTAL": 1,
+        "Absence ou insuffisance de  professionnels / services sur le territoire": 1
+      }
+    }
+  ]
+}
