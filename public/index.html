@@ -3,11 +3,14 @@
 <head>
   <meta charset="utf-8"/>
   <title>Carte Var - Ruptures</title>
+
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
   <link rel="stylesheet" href="./style.css">
+
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 </head>
+
 <body>
   <div id="topbar">
     <b>Filtre :</b>
@@ -18,8 +21,18 @@
       <option value="commune" selected>Par commune</option>
       <option value="epci">Par EPCI</option>
     </select>
+
+    <b>Année :</b>
+    <select id="year"></select>
+
+    <b>Période :</b>
+    <select id="periodType"></select>
+
+    <select id="periodValue"></select>
+
     <span id="info"></span>
   </div>
+  
   <div id="map"></div>
 
   <script src="./app.js"></script>

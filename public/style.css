@@ -36,3 +36,12 @@ select{
   color:#1f1f1f;
   font-size:16px;
 }
+
+select:disabled{
+  opacity: 0.55;
+  cursor: not-allowed
+}
+
+#topbar b{
+  white-space: nowrap;
+}
