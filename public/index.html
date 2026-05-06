@@ -5,6 +5,7 @@
   <title>Carte Var - Ruptures</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./style.css">
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -13,24 +14,43 @@
 
 <body>
   <div id="topbar">
-    <b>Filtre :</b>
-    <select id="filter"></select>
+    <div class="filter-group filter-large">
+      <label for="filter">Difficulté signalée</label>
+      <select id="filter"></select>
+    </div>
 
-    <b>Affichage :</b>
-    <select id="mode">
-      <option value="commune" selected>Par commune</option>
-      <option value="epci">Par EPCI</option>
-    </select>
+    <div class="filter-group">
+      <label for="mode">Affichage</label>
+      <select id="mode">
+        <option value="commune" selected>Par commune</option>
+        <option value="epci">Par EPCI</option>
+      </select>
+    </div>
 
-    <b>Année :</b>
-    <select id="year"></select>
+    <div class="filter-group">
+      <label for="year">Année</label>
+      <select id="year"></select>
+    </div>
 
-    <b>Période :</b>
-    <select id="periodType"></select>
+    <div class="filter-group">
+      <label for="periodType">Type de période</label>
+      <select id="periodType"></select>
+    </div>
 
-    <select id="periodValue"></select>
+    <div class="filter-group">
+      <label for="periodValue">Période exacte</label>
+      <select id="periodValue"></select>
+    </div>
 
-    <span id="info"></span>
+    <!--
+    <input type="file" id="csvFile" accept=".csv,text/csv"/>
+    <button id="applyCsv">Charger le CSV</button>
+    <span id="csvStatus"></span>
+    -->
+
+    <div class="info-badge">
+      <span id="info"></span>
+    </div>
   </div>
   
   <div id="map"></div>
