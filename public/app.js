@@ -1,4 +1,5 @@
-const map = L.map('map').setView([43.35, 6.2], 9);
+const map = L.map('map', { zoomControl: false }).setView([43.35, 6.2], 9);
+L.control.zoom({ position: 'bottomright' }).addTo(map);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 18 }).addTo(map);
 
 const layer = L.layerGroup().addTo(map);
@@ -12,9 +13,20 @@ const yearSel = document.getElementById("year");
 const periodTypeSel = document.getElementById("periodType");
 const periodValueSel = document.getElementById("periodValue");
 
+const csvFile = document.getElementById("csvFile");
+const applyCsv = document.getElementById("applyCsv");
+const csvStatus = document.getElementById("csvStatus");
+
+const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR_apoBZZyaQ7hVW2pT6xJlfkHWEr2rlHoeRGZsjty9wftpXYQCt-GXdeYd18gVVsdKh2FZtvnkZbgx/pub?gid=1819733423&single=true&output=csv";
+
 let DATA = null;      // {categories, rows}
 let EPCI_GEO = null;
 let ROWS_WITH_EPCI = null;
+
+const COL_TS   = "Horodateur";
+const COL_COMMUNE = "Commune du domicile"; // Le nouveau CSV utilise la commune sans espace final grâce au trim()
+const COL_DATE = "Date de survenue de la rupture (indiquez la date de l'évènement ou le 1er du mois concerné)";
+const COL_ORIG = "Selon vous, qu'est ce qui est à l'origine de la situation ?";
 
 // -------------------------
 // Helpers UI
@@ -279,20 +291,26 @@ function aggregateByEPCI(rowsWithEpci, category){
 // Render
 // -------------------------
 function bubbleIconCommune(value){
+  // Taille dynamique selon le nombre de cas
+  const size = Math.min(80, 25 + (value * 3)); 
+  const radius = size / 2;
   return L.divIcon({
     className: "",
-    html: `<div class="bubble">${value}</div>`,
-    iconSize: [42,42],
-    iconAnchor: [21,21]
+    html: `<div class="bubble" style="width:${size}px; height:${size}px; font-size:${Math.max(12, size/2.5)}px;">${value}</div>`,
+    iconSize: [size, size],
+    iconAnchor: [radius, radius]
   });
 }
 
 function bubbleIconEPCI(value){
+  // Taille dynamique EPCI
+  const size = Math.min(100, 35 + (value * 3)); 
+  const radius = size / 2;
   return L.divIcon({
     className: "",
-    html: `<div class="bubble-epci">${value}</div>`,
-    iconSize: [60,60],
-    iconAnchor: [30,30]
+    html: `<div class="bubble-epci" style="width:${size}px; height:${size}px; font-size:${Math.max(14, size/3)}px;">${value}</div>`,
+    iconSize: [size, size],
+    iconAnchor: [radius, radius]
   });
 }
 
@@ -393,8 +411,8 @@ function getEPCICenter(epciCode){
 
 function colorForEPCI(code){
   const palette = [
-    "#b7e3f5","#bfe7c2","#f6e1a6","#cbb7f0",
-    "#f2b7c8","#b9d5ff","#c8f2e7","#d7f1b6"
+    "#d1dff2", "#d9f0f7", "#fde8b8", "#f9d1ca", 
+    "#ebf2fb", "#c5e6f1", "#fae3ac"
   ];
   let h = 0;
   for (let i = 0; i < code.length; i++) h = (h * 31 + code.charCodeAt(i)) >>> 0;
@@ -428,28 +446,44 @@ function attachEPCIToRows(rows, epciGeo){
 }
 
 // -------------------------
-// Load data.json
+// Load Google Sheet en direct
 // -------------------------
-fetch("./data.json")
-  .then(r => r.json())
-  .then(json => {
-    DATA = json;
-
-    // ✅ Categories (filtre “origine”)
+async function loadLiveGoogleSheet() {
+  try {
+    info.textContent = "Téléchargement des données en direct...";
+    
+    // 1. On charge d'abord le dictionnaire des communes
+    const cpGeo = await loadCpGeo();
+    
+    // 2. On va chercher le CSV en direct depuis Google Sheets
+    const response = await fetch(GOOGLE_SHEET_CSV_URL);
+    const csvText = await response.text();
+    
+    // 3. On utilise tes fonctions existantes pour parser !
+    const table = parseCSV(csvText);
+    const objs = toObjects(table);
+    
+    // 4. On construit les lignes utilisables par la carte
+    const built = buildRowsFromGoogleForms(objs, cpGeo);
+    DATA = built;
+    
+    // 5. On met à jour l'interface (Filtres, Temps...)
     setCategoryOptions(DATA.categories);
     sel.value = "TOTAL";
-
-    // ✅ UI temps
     buildTimeUI(DATA.rows);
-
-    // si EPCI déjà chargé, on enrichit
+    
+    // 6. On attache les EPCI si la couche est déjà chargée
     if (EPCI_GEO) {
       ROWS_WITH_EPCI = attachEPCIToRows(DATA.rows, EPCI_GEO);
     }
-
-    render();
-  });
-
+    
+    render(); // On affiche la carte
+  } catch (error) {
+    console.error("Erreur lors de la récupération des données :", error);
+    info.textContent = "Erreur : " + error.message;
+  }
+}
+// La fonction loadLiveGoogleSheet() sera appelée tout à la fin du fichier !
 // -------------------------
 // Load EPCI geojson
 // -------------------------
@@ -499,3 +533,261 @@ periodTypeSel.addEventListener("change", () => {
 });
 
 periodValueSel.addEventListener("change", render);
+
+//---------------------------------------
+//   Load CSV
+//---------------------------------------
+// Gère les virgules et champs
+function parseCSV(text){
+  //Gérer les virgules et espaces 
+  const rows = [];
+  let i = 0, field = "", row = [];
+  let inQuotes = false;
+
+  while (i < text.length){
+    const c = text[i];
+
+    if (inQuotes){
+      if (c === '"'){
+        if (text[i+1] === '"'){ // escape ""
+          field += '"';
+          i += 2;
+          continue;
+        } else {
+          inQuotes = false;
+          i++;
+          continue;
+        }
+      } else {
+        field += c;
+        i++;
+        continue;
+      }
+    } else {
+      if (c === '"'){
+        inQuotes = true;
+        i++;
+        continue;
+      }
+      if (c === ","){
+        row.push(field);
+        field = "";
+        i++;
+        continue;
+      }
+      if (c === "\r"){
+        i++; // ignore
+        continue;
+      }
+      if (c === "\n"){
+        row.push(field);
+        rows.push(row);
+        row = [];
+        field = "";
+        i++;
+        continue;
+      }
+      field += c;
+      i++;
+    }
+  }
+
+  // dernier champ
+  row.push(field);
+  rows.push(row);
+
+  return rows;
+
+}
+
+function toObjects(table){
+  const header = table[0].map(h => String(h ?? "").trim());
+  const out = [];
+  for (let r = 1; r < table.length; r++){
+    if (table[r].length === 1 && String(table[r][0] ?? "").trim() === "") continue;
+    const obj = {};
+    for (let c = 0; c < header.length; c++){
+      obj[header[c]] = table[r][c] ?? "";
+    }
+    out.push(obj);
+  }
+  return out;
+}
+
+// Parse date et split multi et extraire les CP
+function extractCP(v){
+  const m = String(v ?? "").match(/\b(\d{5})\b/);
+  return m ? m[1] : null;
+}
+
+function splitMulti(v){
+  if (!v) return [];
+  return String(v)
+    .split(/\n|;|,/g)
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
+function parseToISODate(dateStr){
+  if (!dateStr) return null;
+  const s = String(dateStr).trim();
+  if (!s) return null;
+
+  // ISO direct
+  const d1 = new Date(s);
+  if (!isNaN(d1.getTime())) return d1.toISOString().slice(0,10);
+
+  // FR dd/mm/yyyy (avec ou sans heure)
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+  if (m){
+    const dd = parseInt(m[1],10);
+    const mm = parseInt(m[2],10)-1;
+    const yy = parseInt(m[3],10);
+    const d = new Date(yy, mm, dd);
+    if (!isNaN(d.getTime())) return d.toISOString().slice(0,10);
+  }
+  return null;
+}
+
+function normalizeName(str) {
+  return String(str ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().replace(/[-']/g, " ");
+}
+
+//Charger var_communes
+let CP_GEO = null;
+async function loadCpGeo(){
+  if (CP_GEO) return CP_GEO;
+  const res = await fetch("./var_communes.csv");
+  const text = await res.text();
+  const table = parseCSV(text);
+  const objs = toObjects(table);
+
+  const map = {};
+  objs.forEach(o => {
+    const cp = String(o.CP ?? "").trim();
+    if (!cp) return;
+    const lat = parseFloat(String(o.LAT).replace(",", "."));
+    const lng = parseFloat(String(o.LNG).replace(",", "."));
+    if (Number.isFinite(lat) && Number.isFinite(lng)){
+      const label = o.LABEL || cp;
+      // On indexe par le nom normalisé de la commune au lieu du code postal seul
+      map[normalizeName(label)] = { cp, lat, lng, label };
+    }
+  });
+  CP_GEO = map;
+  return CP_GEO;
+}
+
+//construire rows depuis le google sheet
+
+function buildRowsFromGoogleForms(objs, cpGeo){
+  const rows = [];
+  const catsSet = new Set();
+
+  for (const o of objs){
+    // Le nouveau CSV donne la commune, pas le CP
+    const communeName = String(o[COL_COMMUNE] ?? "").trim();
+    if (!communeName) continue;
+    
+    // On cherche dans notre dictionnaire via le nom normalisé
+    const geo = cpGeo[normalizeName(communeName)];
+    if (!geo) {
+      console.warn("Commune non trouvée dans le référentiel :", communeName);
+      continue;
+    }
+
+    const date = parseToISODate(o[COL_DATE]);
+    if (!date) continue;
+
+    const origins = splitMulti(o[COL_ORIG]);
+    origins.forEach(x => catsSet.add(x));
+
+    rows.push({
+      // tu peux garder l'horodateur pour dédoublonner (vide si absent)
+      ts: String(o[COL_TS] ?? "").trim(),
+      date,
+      cp: geo.cp, // On récupère le CP via le référentiel
+      label: geo.label,
+      lat: geo.lat,
+      lng: geo.lng,
+      origins
+    });
+  }
+
+  return { rows, categories: ["TOTAL", ...Array.from(catsSet).sort()] };
+}
+
+//Merge sans doublons
+
+function rowKey(r){
+  // clé de dédoublonnage (adaptable)
+  // horodateur est idéal s'il est toujours unique
+  const origins = Array.isArray(r.origins) ? r.origins.slice().sort().join("|") : "";
+  return [r.ts || "", r.date || "", r.cp || "", origins].join("::");
+}
+
+function mergeRows(existing, incoming){
+  const seen = new Set(existing.map(rowKey));
+  const out = existing.slice();
+
+  let added = 0;
+  for (const r of incoming){
+    const k = rowKey(r);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(r);
+    added++;
+  }
+  return { rows: out, added };
+}
+
+function rebuildCategoriesFromRows(rows){
+  const set = new Set();
+  rows.forEach(r => (Array.isArray(r.origins) ? r.origins : []).forEach(x => set.add(x)));
+  return ["TOTAL", ...Array.from(set).sort()];
+}
+
+// btn charger le csv 
+
+if (applyCsv) {
+  applyCsv.addEventListener("click", async () => {
+    if (!csvFile.files || !csvFile.files[0]){
+      csvStatus.textContent = "Choisis un fichier CSV.";
+      return;
+    }
+
+    csvStatus.textContent = "Lecture du CSV…";
+
+    const cpGeo = await loadCpGeo();
+
+    const file = csvFile.files[0];
+    const text = await file.text();
+
+    const table = parseCSV(text);
+    const objs = toObjects(table);
+
+    const built = buildRowsFromGoogleForms(objs, cpGeo);
+
+    // DATA doit exister (sinon on initialise)
+    if (!DATA) DATA = { categories: ["TOTAL"], rows: [] };
+
+    const merged = mergeRows(DATA.rows, built.rows);
+    DATA.rows = merged.rows;
+    DATA.categories = rebuildCategoriesFromRows(DATA.rows);
+
+    // reset options filtre catégories
+    setCategoryOptions(DATA.categories);
+    sel.value = "TOTAL";
+
+    // si EPCI déjà chargé : on ré-attache
+    if (EPCI_GEO){
+      ROWS_WITH_EPCI = attachEPCIToRows(DATA.rows, EPCI_GEO);
+    }
+
+    csvStatus.textContent = `OK: ${built.rows.length} lignes lues, +${merged.added} ajoutées (total ${DATA.rows.length}).`;
+    render();
+  });
+}
+
+// On lance le téléchargement au démarrage maintenant que tout est initialisé !
+loadLiveGoogleSheet();
