@@ -177,3 +177,268 @@ select:disabled {
 .leaflet-popup-tip {
   box-shadow: 0 15px 35px rgba(0,0,0,0.15);
 }
+
+/* ==========================================================================
+   ÉCRAN DE CONNEXION (LOCK SCREEN)
+   ========================================================================== */
+
+#login-screen {
+  position:fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  /* Dégradé sombre premium en arrière-plan */
+  background: radial-gradient(circle at center, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%);
+  z-index: 9999; /* Positionné tout en haut, au-dessus de la carte */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+/* Classe pour masquer l'écran avec une transition douce */
+#login-screen.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+/* Carte centrale */
+.login-card {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 40px 30px;
+  border-radius: 20px;
+  width: 90%;
+  max-width: 380px;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.login-card h2 {
+  margin: 0 0 8px 0;
+  color: white;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.login-card p {
+  color: #94a3b8;
+  margin: 0 0 25px 0;
+  font-size: 14px;
+}
+/* Champ de saisie et bouton pour voir le mot de passe */
+.input-group {
+  position: relative;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+}
+#password-input {
+  width: 100%;
+  padding: 14px 45px 14px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+  font-family: 'Outfit', sans-serif;
+  font-size: 16px;
+  outline: none;
+  transition: all 0.3s ease;
+}
+#password-input:focus {
+  border-color: var(--blue-light);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 3px rgba(115, 190, 215, 0.25);
+}
+#password-input::placeholder {
+  color: #64748b;
+}
+/* Bouton œil (afficher/masquer) */
+#toggle-password {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 18px;
+  outline: none;
+  padding: 4px;
+  transition: color 0.2s ease;
+}
+#toggle-password:hover {
+  color: white;
+}
+/* Bouton de validation */
+#login-button {
+  width: 100%;
+  padding: 14px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, var(--blue-light) 0%, var(--blue-dark) 100%);
+  color: white;
+  font-family: 'Outfit', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(55, 102, 174, 0.3);
+}
+#login-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(115, 190, 215, 0.4);
+}
+#login-button:active {
+  transform: translateY(0);
+}
+/* Message d'erreur rouge */
+.error-msg {
+  color: #f87171 !important;
+  margin-top: 15px !important;
+  margin-bottom: 0 !important;
+  font-weight: 600;
+  font-size: 13px !important;
+  min-height: 20px;
+}
+
+/* Bouton de déconnexion (Topbar) */
+.logout-btn {
+  background: rgba(239, 68, 68, 0.08); /* Rouge très léger et transparent */
+  color: #ef4444; /* Texte/icône rouge */
+  border: 1px solid rgba(239, 68, 68, 0.15);
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  height: 43px; /* Même hauteur que vos sélecteurs */
+  width: 43px;
+  box-sizing: border-box;
+}
+
+.logout-btn:hover {
+  background: #ef4444; /* Devient rouge plein au survol */
+  color: white; /* L'icône devient blanche */
+  border-color: #ef4444;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+}
+
+.logout-btn:active {
+  transform: translateY(0) scale(0.95);
+}
+
+/* ==========================================================================
+   MULTI-SELECT PERSONNALISÉ (DROPDOWN À CHECKBOXES)
+   ========================================================================== */
+
+.custom-select {
+  position: relative;
+  font-family: 'Outfit', sans-serif;
+  user-select: none;
+  width: 100%;
+}
+
+.select-trigger {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  color: var(--text-dark);
+  cursor: pointer;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);
+  transition: all 0.2s ease;
+  height: 43px; /* Aligné sur les autres filtres */
+  box-sizing: border-box;
+}
+
+.select-trigger:hover {
+  border-color: var(--blue-light);
+}
+
+.select-trigger .arrow {
+  font-size: 10px;
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+}
+
+.custom-options {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 5px;
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  max-height: 250px;
+  overflow-y: auto;
+  z-index: 1010;
+  padding: 8px 0;
+}
+
+/* Classe déclenchée par JS pour ouvrir le menu */
+.custom-options.show {
+  display: block;
+}
+
+.custom-option {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  font-size: 14px;
+  color: var(--text-dark);
+}
+
+.custom-option:hover {
+  background: #f1f5f9;
+}
+
+.custom-option input[type="checkbox"] {
+  margin-right: 10px;
+  cursor: pointer;
+  accent-color: var(--blue-dark);
+}
+
+.custom-option label {
+  cursor: pointer;
+  display: block;
+  width: 100%;
+  font-weight: 500;
+  color: var(--text-dark);
+  text-transform: none; /* Conserver la casse d'origine */
+  font-size: 14px;
+  letter-spacing: normal;
+}
+
+/* ==========================================================================
+   MINI MARQUEUR INDIVIDUEL (SPIDERFY EFFECT)
+   ========================================================================== */
+
+.mini-marker-bubble {
+  background: white;
+  border: 2px solid var(--red);
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.25);
+  transition: transform 0.2s ease;
+}
+
+.mini-marker-bubble:hover {
+  transform: scale(1.3);
+}

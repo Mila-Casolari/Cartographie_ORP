@@ -4,7 +4,8 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { 
 
 const layer = L.layerGroup().addTo(map);
 
-const sel = document.getElementById("filter");
+//const sel = document.getElementById("filter");
+let selectedCategories = ["TOTAL"];
 const info = document.getElementById("info");
 const modeSel = document.getElementById("mode");
 
@@ -27,6 +28,7 @@ const COL_TS   = "Horodateur";
 const COL_COMMUNE = "Commune du domicile"; // Le nouveau CSV utilise la commune sans espace final grâce au trim()
 const COL_DATE = "Date de survenue de la rupture (indiquez la date de l'évènement ou le 1er du mois concerné)";
 const COL_ORIG = "Selon vous, qu'est ce qui est à l'origine de la situation ?";
+const COL_DETAIL = "Détail de la difficulté"
 
 // -------------------------
 // Helpers UI
@@ -47,15 +49,108 @@ function setOptions(selectEl, options, { placeholder = null } = {}) {
   });
 }
 
-function setCategoryOptions(categories){
-  sel.innerHTML = "";
+// function setCategoryOptions(categories){
+//   sel.innerHTML = "";
+//   categories.forEach(c => {
+//     const o = document.createElement("option");
+//     o.value = c;
+//     o.textContent = (c === "TOTAL") ? "Total (toutes difficultés)" : c;
+//     sel.appendChild(o);
+//   });
+// }
+
+function setCategoryOptions(categories) {
+  const container = document.getElementById("custom-options-container");
+  if (!container) return;
+  
+  container.innerHTML = "";
+  
   categories.forEach(c => {
-    const o = document.createElement("option");
-    o.value = c;
-    o.textContent = (c === "TOTAL") ? "Total (toutes difficultés)" : c;
-    sel.appendChild(o);
+    const optionDiv = document.createElement("div");
+    optionDiv.className = "custom-option";
+    
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.value = c;
+    checkbox.id = `chk-${c.replace(/[^a-zA-Z0-9]/g, "-")}`;
+    checkbox.checked = selectedCategories.includes(c);
+    
+    const label = document.createElement("label");
+    label.htmlFor = checkbox.id;
+    label.textContent = (c === "TOTAL") ? "Total (toutes difficultés)" : c;
+    
+    optionDiv.appendChild(checkbox);
+    optionDiv.appendChild(label);
+    container.appendChild(optionDiv);
+    
+    // Événement quand on clique sur une difficulté
+    checkbox.addEventListener("change", () => {
+      handleCategorySelectionChange(c, checkbox.checked, categories);
+    });
   });
+  
+  updateSelectTriggerText();
 }
+
+function handleCategorySelectionChange(category, isChecked, allCategories) {
+  if (category === "TOTAL") {
+    if (isChecked) {
+      selectedCategories = ["TOTAL"];
+    } else {
+      selectedCategories = ["TOTAL"];
+    }
+  } else {
+    if (isChecked) {
+      selectedCategories = selectedCategories.filter(c => c !== "TOTAL");
+      selectedCategories.push(category);
+    } else {
+      selectedCategories = selectedCategories.filter(c => c !== category);
+      if (selectedCategories.length === 0) {
+        selectedCategories = ["TOTAL"];
+      }
+    }
+  }
+  
+  // Synchroniser l'état coché de toutes les cases graphiquement
+  const checkboxes = document.querySelectorAll("#custom-options-container input[type='checkbox']");
+  checkboxes.forEach(chk => {
+    chk.checked = selectedCategories.includes(chk.value);
+  });
+  
+  updateSelectTriggerText();
+  render(); // Mettre à jour la carte immédiatement !
+}
+
+function updateSelectTriggerText() {
+  const triggerSpan = document.querySelector("#select-trigger span");
+  if (!triggerSpan) return;
+  
+  if (selectedCategories.includes("TOTAL")) {
+    triggerSpan.textContent = "Total (toutes difficultés)";
+  } else {
+    if (selectedCategories.length === 1) {
+      triggerSpan.textContent = selectedCategories[0];
+    } else {
+      triggerSpan.textContent = `${selectedCategories.length} difficultés sélectionnées`;
+    }
+  }
+}
+
+// Ouvrir/fermer le menu au clic sur le déclencheur
+document.getElementById("select-trigger")?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  document.getElementById("custom-options-container")?.classList.toggle("show");
+});
+
+// Fermer le menu si on clique en dehors
+document.addEventListener("click", () => {
+  document.getElementById("custom-options-container")?.classList.remove("show");
+});
+
+// Empêcher la fermeture si on clique à l'intérieur du menu d'options
+document.getElementById("custom-options-container")?.addEventListener("click", (e) => {
+  e.stopPropagation();
+});
 
 // -------------------------
 // Parsing date
@@ -69,16 +164,11 @@ function parseToDate(dateStr){
   if (!dateStr) return null;
   const s = String(dateStr).trim();
   if (!s) return null;
-
-  // ISO direct
-  const iso = new Date(s);
-  if (!isNaN(iso.getTime())) return iso;
-
-  // FR dd/mm/yyyy (avec ou sans heure)
+  // 1. Tester le format français dd/mm/yyyy (avec ou sans heure) EN PREMIER
   const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
   if (m){
     const dd = parseInt(m[1], 10);
-    const mm = parseInt(m[2], 10) - 1;
+    const mm = parseInt(m[2], 10) - 1; // En JS, les mois vont de 0 à 11
     const yy = parseInt(m[3], 10);
     const hh = m[4] ? parseInt(m[4], 10) : 0;
     const mi = m[5] ? parseInt(m[5], 10) : 0;
@@ -86,7 +176,9 @@ function parseToDate(dateStr){
     const d = new Date(yy, mm, dd, hh, mi, ss);
     return isNaN(d.getTime()) ? null : d;
   }
-
+  // 2. Fallback sur le format ISO direct (si la date vient d'une autre source)
+  const iso = new Date(s);
+  if (!isNaN(iso.getTime())) return iso;
   return null;
 }
 
@@ -242,11 +334,19 @@ function normStr(v){
   return String(v ?? "").trim().replace(/\s+/g, " ").normalize("NFKC");
 }
 
-function matchesCategory(row, category){
-  if (category === "TOTAL") return true;
-  const target = normStr(category);
-  const arr = Array.isArray(row.origins) ? row.origins : [];
-  return arr.some(o => normStr(o) === target);
+function matchesCategory(row, categories){
+  const catArray = Array.isArray(categories) ? categories : [categories];
+  if (!catArray || catArray.length === 0 || catArray.includes("TOTAL")) {
+    return true;
+  }
+  
+  const rowOrigins = Array.isArray(row.origins) ? row.origins.map(normStr) : [];
+  
+  // Renvoie vrai si au moins une des difficultés est partagée
+  return catArray.some(cat => {
+    const target = normStr(cat);
+    return rowOrigins.some(o => o === target);
+  });
 }
 
 function aggregateByCommune(rows, category){
@@ -316,11 +416,8 @@ function bubbleIconEPCI(value){
 
 function render(){
   layer.clearLayers();
-
-  const category = sel.value;
   const mode = modeSel.value;
-
-  // texte période
+  // Texte d'affichage de la période
   const timeLabel = (() => {
     const y = yearSel.value;
     if (y === "ALL") return "Toutes années";
@@ -328,52 +425,103 @@ function render(){
     const pv = periodValueSel.options[periodValueSel.selectedIndex]?.textContent || "";
     return `${y} – ${pv}`;
   })();
-
-  // Filtrage temps
+  // Filtrage temporel initial
   const rowsTime = filterRowsByTime(DATA.rows);
-
-  if (mode === "commune"){
-    const points = aggregateByCommune(rowsTime, category);
-
-    info.textContent = `${points.length} points (communes) — ${timeLabel} — filtre: ${category}`;
-    points.forEach(p => {
-      L.marker([p.lat, p.lng], { icon: bubbleIconCommune(p.value) })
-        .addTo(layer)
-        .bindPopup(
-          `<b>${p.label}</b><br>` +
-          `CP: ${p.cp}<br>` +
-          `Période: ${timeLabel}<br>` +
-          `Filtre: ${category}<br>` +
-          `<b>${p.value}</b> cas`
-        );
+  // Libellé textuel simplifié du filtre actif pour le badge d'info
+  const filterText = selectedCategories.includes("TOTAL") 
+    ? "Toutes" 
+    : (selectedCategories.length > 2 
+        ? `${selectedCategories.length} diff.` 
+        : selectedCategories.join(", "));
+  // -------------------------
+  // MODE COMMUNE (CLUSTERING & SPIDERFY)
+  // -------------------------
+  if (mode === "commune") {
+    // A. Créer le groupe de clusters Leaflet MarkerCluster
+    const markerClusterGroup = L.markerClusterGroup({
+      showCoverageOnHover: false,
+      spiderfyOnMaxZoom: true, // Écarte les marqueurs identiques au zoom maximum
+      maxClusterRadius: 40,   // Rayon d'attraction des clusters
+      // Personnalisation graphique du cluster pour garder tes jolies bulles d'origine
+      iconCreateFunction: function(cluster) {
+        const childCount = cluster.getChildCount();
+        const size = Math.min(80, 25 + (childCount * 3));
+        const radius = size / 2;
+        return L.divIcon({
+          className: "",
+          html: `<div class="bubble" style="width:${size}px; height:${size}px; font-size:${Math.max(12, size/2.5)}px;">${childCount}</div>`,
+          iconSize: [size, size],
+          iconAnchor: [radius, radius]
+        });
+      }
     });
-
+    // B. Filtrer les lignes selon les difficultés sélectionnées
+    const matchingRows = rowsTime.filter(r => matchesCategory(r, selectedCategories));
+    // C. Mettre à jour l'info-badge avec le NOMBRE RÉEL de ruptures (et non de communes)
+    info.textContent = `${matchingRows.length} ruptures — ${timeLabel} — filtre: ${filterText}`;
+    // D. Créer un marqueur individuel par rupture
+    matchingRows.forEach(r => {
+      // Notre joli point rouge défini dans style.css
+      const miniIcon = L.divIcon({
+        className: "",
+        html: `<div class="mini-marker-bubble" title="${r.label}"></div>`,
+        iconSize: [16, 16],
+        iconAnchor: [8, 8]
+      });
+      // Contenu stylisé et détaillé du popup
+      const popupContent = `
+        <div style="font-family: 'Outfit', sans-serif; min-width: 220px; max-width: 300px;">
+          <b style="color: var(--blue-dark); font-size: 15px;">${r.label}</b> (CP: ${r.cp})<br>
+          <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 8px 0;">
+          <b>Date de survenue :</b>${formatToFrDate(r.date)}<br>
+          <b style="color: var(--blue-dark); display: block; margin-top: 8px; font-size: 13px;">Difficultés rencontrées :</b>
+          <ul style="margin: 4px 0; padding-left: 18px; color: var(--text-dark); font-size: 13px;">
+            ${r.origins.map(o => `<li>${o}</li>`).join("")}
+          </ul>
+          <!-- Encart esthétique pour le détail (s'il existe) -->
+          ${r.detail ? `
+            <b style="color: var(--blue-dark); display: block; margin-top: 10px; font-size: 13px;">Précisions :</b>
+            <div style="margin-top: 4px; padding: 8px 10px; background: #f8fafc; border-left: 3px solid var(--blue-light); border-radius: 4px; font-size: 12.5px; color: var(--text-muted); font-style: italic; line-height: 1.4; max-height: 100px; overflow-y: auto; box-sizing: border-box;">
+              "${r.detail}"
+            </div>
+          ` : ""}
+        </div>
+      `;
+      const marker = L.marker([r.lat, r.lng], { icon: miniIcon })
+        .bindPopup(popupContent);
+      
+      markerClusterGroup.addLayer(marker);
+    });
+    // E. Ajouter l'ensemble du groupe de clusters sur la carte
+    layer.addLayer(markerClusterGroup);
     return;
   }
-
-  // mode EPCI
-  if (mode === "epci" && (!EPCI_GEO || !ROWS_WITH_EPCI)){
+  // -------------------------
+  // MODE EPCI (AGRÉGATION PAR ZONE)
+  // -------------------------
+  if (mode === "epci" && (!EPCI_GEO || !ROWS_WITH_EPCI)) {
     info.textContent = "Chargement des EPCI…";
     return;
   }
-
   const rowsWithEpciTime = filterRowsByTime(ROWS_WITH_EPCI);
-  const epciItems = aggregateByEPCI(rowsWithEpciTime, category);
-
-  info.textContent = `${epciItems.length} points (EPCI) — ${timeLabel} — filtre: ${category}`;
-
+  const epciItems = aggregateByEPCI(rowsWithEpciTime, selectedCategories);
+  // Somme totale des cas EPCI filtrés
+  const totalRupturesEPCI = epciItems.reduce((sum, item) => sum + item.total, 0);
+  info.textContent = `${totalRupturesEPCI} ruptures — ${timeLabel} — filtre: ${filterText}`;
   epciItems.forEach(item => {
     const center = getEPCICenter(item.epciCode);
     if (!center) return;
-
     L.marker([center.lat, center.lng], { icon: bubbleIconEPCI(item.total) })
       .addTo(layer)
       .bindPopup(
-        `<b>${item.epciName}</b><br>` +
-        `Code: ${item.epciCode}<br>` +
-        `Période: ${timeLabel}<br>` +
-        `Filtre: ${category}<br>` +
-        `<b>${item.total}</b> cas (somme réponses)`
+        `<div style="font-family: 'Outfit', sans-serif;">
+          <b style="font-size:15px;">${item.epciName}</b><br>
+          <b>Code EPCI :</b> ${item.epciCode}<br>
+          <b>Période :</b> ${timeLabel}<br>
+          <b>Difficultés :</b> ${filterText}<br>
+          <hr style="border:0; border-top:1px solid #eee; margin:8px 0;">
+          <b style="color:var(--blue-dark); font-size:14px;">${item.total} ruptures</b>
+        </div>`
       );
   });
 }
@@ -469,7 +617,8 @@ async function loadLiveGoogleSheet() {
     
     // 5. On met à jour l'interface (Filtres, Temps...)
     setCategoryOptions(DATA.categories);
-    sel.value = "TOTAL";
+    //sel.value = "TOTAL";
+    selectedCategories = ['TOTAL'];
     buildTimeUI(DATA.rows);
     
     // 6. On attache les EPCI si la couche est déjà chargée
@@ -520,7 +669,7 @@ fetch("./EPCI_2025.geojson")
 // Events
 // -------------------------
 modeSel.addEventListener("change", render);
-sel.addEventListener("change", render);
+//sel.addEventListener("change", render);
 
 yearSel.addEventListener("change", () => {
   syncPeriodUIState();
@@ -622,10 +771,36 @@ function extractCP(v){
 
 function splitMulti(v){
   if (!v) return [];
-  return String(v)
-    .split(/\n|;|,/g)
-    .map(s => s.trim())
-    .filter(Boolean);
+  const str = String(v);
+  const result = [];
+  let current = "";
+  let parenDepth = 0; // Permet de savoir si on est dans des parenthèses (...)
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i];
+    
+    if (char === '(') {
+      parenDepth++;
+      current += char;
+    } else if (char === ')') {
+      parenDepth--;
+      current += char;
+    } else if ((char === ',' || char === ';' || char === '\n') && parenDepth === 0) {
+      // On découpe UNIQUEMENT si on croise un séparateur hors des parenthèses !
+      if (current.trim()) {
+        result.push(current.trim());
+      }
+      current = ""; // On réinitialise pour l'élément suivant
+    } else {
+      current += char;
+    }
+  }
+  
+  // Ne pas oublier d'ajouter le dernier élément après la dernière virgule
+  if (current.trim()) {
+    result.push(current.trim());
+  }
+  
+  return result;
 }
 
 function parseToISODate(dateStr){
@@ -633,24 +808,48 @@ function parseToISODate(dateStr){
   const s = String(dateStr).trim();
   if (!s) return null;
 
-  // ISO direct
-  const d1 = new Date(s);
-  if (!isNaN(d1.getTime())) return d1.toISOString().slice(0,10);
-
-  // FR dd/mm/yyyy (avec ou sans heure)
+  // 1. Tester le format français dd/mm/yyyy EN PREMIER
   const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
   if (m){
-    const dd = parseInt(m[1],10);
-    const mm = parseInt(m[2],10)-1;
-    const yy = parseInt(m[3],10);
-    const d = new Date(yy, mm, dd);
-    if (!isNaN(d.getTime())) return d.toISOString().slice(0,10);
+    const dd = String(m[1]).padStart(2, '0');
+    const mm = String(m[2]).padStart(2, '0');
+    const yy = m[3];
+    return `${yy}-${mm}-${dd}`; // Renvoie directement "AAAA-MM-JJ" de manière ultra-fiable
+  }
+
+  // 2. Fallback sur le format ISO direct
+  const d1 = new Date(s);
+  if (!isNaN(d1.getTime())){
+    const yy = d1.getFullYear();
+    const mm = String(d1.getMonth() + 1).padStart(2, '0');
+    const dd = String(d1.getDate()).padStart(2, '0');
+    return `${yy}-${mm}-${dd}`;
   }
   return null;
 }
 
+function formatToFrDate(isoDateStr) {
+  if (!isoDateStr) return "";
+  const parts = isoDateStr.split("-");
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return isoDateStr;
+}
+
 function normalizeName(str) {
-  return String(str ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().replace(/[-']/g, " ");
+  let s = String(str ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // Supprime les accents
+    .trim()
+    .replace(/[-']/g, " ")           // Remplace les tirets et apostrophes par des espaces
+    .replace(/\s+/g, " ");           // Nettoie les doubles espaces
+  // 👈 LE CODE MAGIQUE DU MENTOR :
+  // Remplace "st" par "saint" et "ste" par "sainte" lorsqu'ils forment des mots entiers (\b)
+  s = s.replace(/\bst\b/g, "saint")
+       .replace(/\bste\b/g, "sainte");
+  return s;
 }
 
 //Charger var_communes
@@ -710,7 +909,8 @@ function buildRowsFromGoogleForms(objs, cpGeo){
       label: geo.label,
       lat: geo.lat,
       lng: geo.lng,
-      origins
+      origins,
+      detail: String(o[COL_DETAIL]?? "").trim()
     });
   }
 
@@ -776,8 +976,8 @@ if (applyCsv) {
     DATA.categories = rebuildCategoriesFromRows(DATA.rows);
 
     // reset options filtre catégories
+    selectedCategories = ["TOTAL"];
     setCategoryOptions(DATA.categories);
-    sel.value = "TOTAL";
 
     // si EPCI déjà chargé : on ré-attache
     if (EPCI_GEO){
@@ -791,3 +991,93 @@ if (applyCsv) {
 
 // On lance le téléchargement au démarrage maintenant que tout est initialisé !
 loadLiveGoogleSheet();
+
+/* ==========================================================================
+   LOGIQUE DE SÉCURITÉ ET DE CONNEXION
+   ========================================================================== */
+
+// 1. Fonction pour chiffrer en SHA-256 (méthode de sécurité native du navigateur)
+async function sha256(message) {
+  const msgBuffer = new TextEncoder().encode(message);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// 2. Vérification de la session existante au chargement
+function checkSession() {
+  const isAuth = localStorage.getItem("orp_authenticated");
+  const loginScreen = document.getElementById("login-screen");
+  if (isAuth === "true" && loginScreen) {
+    loginScreen.classList.add("hidden");
+  }
+}
+
+// 3. Gestionnaire des événements pour l'écran de connexion
+function initLogin() {
+  const loginBtn = document.getElementById("login-button");
+  const passwordInput = document.getElementById("password-input");
+  const errorMsg = document.getElementById("login-error");
+  const togglePasswordBtn = document.getElementById("toggle-password");
+  const loginScreen = document.getElementById("login-screen");
+
+  if (!loginBtn || !passwordInput || !togglePasswordBtn || !loginScreen) return;
+
+  // Afficher / Masquer le mot de passe
+  togglePasswordBtn.addEventListener("click", () => {
+    const isPassword = passwordInput.getAttribute("type") === "password";
+    passwordInput.setAttribute("type", isPassword ? "text" : "password");
+    togglePasswordBtn.textContent = isPassword ? "🙈" : "👁️";
+  });
+
+  // Valider en appuyant sur la touche "Entrée"
+  passwordInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+      loginBtn.click();
+    }
+  
+  });
+
+  // Clic sur le bouton de connexion
+  loginBtn.addEventListener("click", async () => {
+    const password = passwordInput.value;
+    
+    // Calcul du hash SHA-256 du texte saisi
+    const inputHash = await sha256(password);
+    
+    // Hash SHA-256 correspondant au mot de passe "ORP2026"
+    const correctHash = "fe04b3ec2a429362ac1ffd3c6aae75f6488af17fa7a937c508cd530e803038ec";
+
+    if (inputHash === correctHash) {
+      // Connexion réussie : on sauvegarde la session et on cache l'écran
+      localStorage.setItem("orp_authenticated", "true");
+      loginScreen.classList.add("hidden");
+      errorMsg.textContent = "";
+    } else {
+      // Échec : message d'erreur
+      errorMsg.textContent = "Mot de passe incorrect.";
+      passwordInput.value = "";
+      passwordInput.focus();
+    }
+  });
+    // Bouton de déconnexion
+  const logoutBtn = document.getElementById("logout-button");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", () => {
+      // 1. Supprime la sauvegarde de session
+      localStorage.removeItem("orp_authenticated");
+      
+      // 2. Vibe et réaffiche l'écran de connexion
+      if (loginScreen) {
+        loginScreen.classList.remove("hidden");
+      }
+      if (passwordInput) {
+        passwordInput.value = ""; // Vide le champ pour la prochaine fois
+      }
+    });
+  }
+}
+
+// Lancement automatique au chargement
+checkSession();
+initLogin();
