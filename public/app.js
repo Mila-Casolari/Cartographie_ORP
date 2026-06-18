@@ -852,6 +852,70 @@ function normalizeName(str) {
   return s;
 }
 
+function findBestGeoMatch(communeName, cpGeo) {
+  const normInput = normalizeName(communeName);
+  if (!normInput) return null;
+
+  // 1. Check exact match first
+  if (cpGeo[normInput]) {
+    return cpGeo[normInput];
+  }
+
+  const getWords = (str) => str.split(/\s+/).filter(Boolean);
+  const inputWords = getWords(normInput);
+  if (inputWords.length === 0) return null;
+
+  let bestKey = null;
+  let bestScore = 0;
+
+  for (const key of Object.keys(cpGeo)) {
+    let score = 0;
+    const keyWords = getWords(key);
+
+    if (key === normInput) {
+      score = 100;
+    } else if (key.startsWith(normInput)) {
+      // Input is a prefix of the city name (e.g., "six fours" -> "six fours les plages")
+      score = 80 + (normInput.length / key.length) * 10;
+    } else if (normInput.startsWith(key)) {
+      // City name is a prefix of the input (e.g., "six fours les plages..." -> "six fours les plages")
+      score = 80 + (key.length / normInput.length) * 10;
+    } else {
+      // Check word inclusion
+      const matchesAllInput = inputWords.every(w => keyWords.includes(w));
+      const matchesAllKey = keyWords.every(w => inputWords.includes(w));
+
+      if (matchesAllInput) {
+        // e.g. "six fours plages" -> "six fours les plages"
+        score = 60 + (inputWords.length / keyWords.length) * 20;
+      } else if (matchesAllKey) {
+        score = 60 + (keyWords.length / inputWords.length) * 20;
+      } else {
+        // Partial word overlap
+        const commonWords = inputWords.filter(w => keyWords.includes(w));
+        if (commonWords.length > 0) {
+          const significantMatches = commonWords.filter(w => !["la", "les", "sur", "des", "du", "en", "le", "aux", "d", "et", "sous"].includes(w));
+          if (significantMatches.length > 0) {
+            score = 30 + (commonWords.length / Math.max(inputWords.length, keyWords.length)) * 20;
+          }
+        }
+      }
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestKey = key;
+    }
+  }
+
+  // Threshold: only accept if score is at least 50
+  if (bestScore >= 50 && bestKey) {
+    return cpGeo[bestKey];
+  }
+
+  return null;
+}
+
 //Charger var_communes
 let CP_GEO = null;
 async function loadCpGeo(){
@@ -888,8 +952,8 @@ function buildRowsFromGoogleForms(objs, cpGeo){
     const communeName = String(o[COL_COMMUNE] ?? "").trim();
     if (!communeName) continue;
     
-    // On cherche dans notre dictionnaire via le nom normalisé
-    const geo = cpGeo[normalizeName(communeName)];
+    // On cherche dans notre dictionnaire via le nom normalisé et la recherche floue/partielle
+    const geo = findBestGeoMatch(communeName, cpGeo);
     if (!geo) {
       console.warn("Commune non trouvée dans le référentiel :", communeName);
       continue;
